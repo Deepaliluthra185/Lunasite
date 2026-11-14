@@ -22,6 +22,10 @@ LunaSite is an interactive 3D web application designed for mission planners, edu
   * **Go / Caution / No-Go Verdicts**: Calculated from continuous dark periods, solar elevation peaks, and power/comms availability.
   * **Landing Site Comparison Tray**: Compare up to 3 candidate landing sites or schedule slip dates side-by-side with CSV telemetry export.
   * **Preset Missions**: Apollo 11, 15, 17, Chandrayaan-3, Luna 25, IM-2 (Mons Mouton), Blue Ghost, Malapert massif, and Shackleton crater rim.
+* **Gemini 2.5 Flash AI Mission Intelligence**:
+  * **AI Mission Navigator**: Natural-language landing site search (e.g. *"South pole site with good Earth visibility for Artemis"* or *"Where did Apollo 11 land?"*) that matches criteria, animates the 3D Moon camera, and displays rationale.
+  * **AI Flight Director Briefing**: Translates deterministic orbital telemetry into plain-language engineering assessments (power architecture, direct-to-Earth antenna pointing, and cryogenic night battery survival).
+  * **AI Trade Study Synthesis**: Multi-candidate trade-off analysis comparing power vs communications across selected sites.
 
 ---
 
@@ -94,3 +98,4 @@ Detailed benchmark comparison tables and verification notes can be found in [VAL
 ## 📜 Compliance & Disclosures
 * **AI Assistance**: See [AI_USAGE.md](AI_USAGE.md) for full disclosure of AI tools utilized during development in accordance with NASA Space Apps Challenge guidelines.
 * **License**: MIT
+

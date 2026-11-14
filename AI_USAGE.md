@@ -24,4 +24,9 @@ In compliance with NASA Space Apps Challenge guidelines, this document records a
    - Constructed realistic NASA Blue Marble Earth with dual-layer cloud sphere, axial rotation, and Rayleigh atmospheric blue rim glow.
    - Added subtle lunar near-side Earthshine lighting and 3,500 multi-spectral deep space starfield.
    - Upgraded UI with modern aerospace glassmorphism styling, telemetry chips, collision-aware polar radar, and refined synodic timeline tracks.
+6. **Gemini 2.5 Flash Natural Language & Mission Intelligence (`src/ai.js`)**:
+   - Integrated Google Gemini 2.5 Flash (`gemini-2.5-flash`) with user-provided API key.
+   - Built **AI Mission Navigator**: Natural-language landing site search parsing operational constraints and historical mission queries into coordinates and camera transitions.
+   - Built **AI Flight Director Briefing**: Plain-language operational assessment interpreting deterministic telemetry into power architecture, direct comms, and thermal night survival requirements.
+   - Built **AI Trade Study Synthesis**: Multi-site comparative analysis summarizing core trade-offs (power vs communications) between candidates.
 

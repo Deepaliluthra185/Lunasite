@@ -267,6 +267,17 @@ label { display: block; font-size: 11.5px; color: var(--mute); margin-top: 10px;
   </div>
   <p class="sub">Compare lunar landing sites by solar power and direct-to-Earth communication links.</p>
   
+  <div class="ai-search-card" style="margin: 10px 0 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.28); border-radius: 9px; padding: 10px 11px;">
+    <div style="font-size:11px; font-weight:600; color:#c7d2fe; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:flex; align-items:center; gap:5px;">
+      <span>✨ AI Mission Navigator</span>
+    </div>
+    <div style="display:flex; gap:6px;">
+      <input id="aiQuery" type="text" placeholder="e.g. 'South pole for Artemis' or 'Apollo 11'" style="flex:1; font-size:12px; background:rgba(0,0,0,0.35);">
+      <button id="aiSearchBtn" style="padding:6px 10px; font-size:12px; background:rgba(99,102,241,0.22); border-color:rgba(99,102,241,0.5); color:#fff;">Find</button>
+    </div>
+    <div id="aiSearchFeedback" style="display:none; margin-top:8px; font-size:11.5px; padding:7px 9px; border-radius:6px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08); color:#e0e7ff; line-height:1.4;"></div>
+  </div>
+  
   <h2>Landing Sites</h2>
   <div class="sites" id="sites"></div>
   
@@ -320,6 +331,7 @@ label { display: block; font-size: 11.5px; color: var(--mute); margin-top: 10px;
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="src/ephemeris.js"></script>
+<script src="src/ai.js"></script>
 <script>
 /* ============ CONFIGURATION ============ */
 const SYNODIC = 29.530588; // days
@@ -400,9 +412,39 @@ function verdict(a){
 /* ============ STATE ============ */
 const state = { site: SITES[7], date: new Date(), slip: 0, playing: false, compare: [] };
 const eff = () => new Date(state.date.getTime() + state.slip * 864e5);
+const aiExplainCache = {};
 
 /* ============ DOM BINDINGS ============ */
 const $ = id => document.getElementById(id);
+
+// AI Natural Language Search
+const handleAiSearch = async () => {
+  const qEl = $("aiQuery");
+  const query = qEl ? qEl.value.trim() : "";
+  if (!query) return;
+  const btn = $("aiSearchBtn"), fb = $("aiSearchFeedback");
+  btn.disabled = true;
+  btn.textContent = "...";
+  fb.style.display = "block";
+  fb.innerHTML = `<span style="color:#a5b4fc">🔍 Navigating lunar catalog with Gemini 2.5...</span>`;
+  try {
+    const res = await window.LunaAI.searchSites(query, SITES);
+    fb.innerHTML = `<b>Target: ${res.site_name}</b> (${res.lat >= 0 ? res.lat.toFixed(2) + "°N" : Math.abs(res.lat).toFixed(2) + "°S"}, ${res.lon >= 0 ? res.lon.toFixed(2) + "°E" : Math.abs(res.lon).toFixed(2) + "°W"})<br><span style="opacity:0.9">${res.reason}</span>`;
+    const preset = SITES.find(s => s.n.toLowerCase() === res.site_name.toLowerCase() || (Math.abs(s.lat - res.lat) < 0.5 && Math.abs(s.lon - res.lon) < 0.5));
+    if (preset) {
+      select(preset);
+    } else {
+      select({ n: res.site_name, lat: res.lat, lon: res.lon, t: "AI Query Match" });
+    }
+  } catch (err) {
+    fb.innerHTML = `<span style="color:#f87171">Search error: ${err.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Find";
+  }
+};
+if ($("aiSearchBtn")) $("aiSearchBtn").onclick = handleAiSearch;
+if ($("aiQuery")) $("aiQuery").onkeydown = e => { if (e.key === "Enter") handleAiSearch(); };
 const sitesEl = $("sites");
 SITES.forEach((s, i) => {
   const b = document.createElement("button");
@@ -726,6 +768,20 @@ function renderReport(k, a){
     <div class="sub">${why}</div>
   </div>
   
+  <div class="ai-box" style="margin: 10px 0 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.28); border-radius: 9px; padding: 10px 12px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+      <span style="font-size:11.5px; font-weight:600; color:#c7d2fe; display:flex; align-items:center; gap:5px;">
+        ✨ AI Flight Director Briefing
+      </span>
+      <button id="aiExplainBtn" style="padding: 3px 9px; font-size:11px; background: rgba(99, 102, 241, 0.22); border-color: rgba(99, 102, 241, 0.45); color: #fff;">
+        Generate
+      </button>
+    </div>
+    <div id="aiExplainContent" style="font-size: 11.5px; color: #cbd5e1; line-height: 1.45;">
+      Click "Generate" for an operational mission assessment on power, comms, and thermal night survival.
+    </div>
+  </div>
+  
   <div class="grid">
     <div class="m">
       <span>Sun Position</span>
@@ -771,6 +827,30 @@ function renderReport(k, a){
   </p>`;
   
   drawSky(k);
+  
+  const expKey = `${s.n}_${eff().toISOString().slice(0, 13)}`;
+  if (aiExplainCache[expKey]) {
+    $("aiExplainContent").innerHTML = aiExplainCache[expKey];
+    $("aiExplainBtn").textContent = "Regenerate";
+  }
+  $("aiExplainBtn").onclick = async () => {
+    const btn = $("aiExplainBtn"), box = $("aiExplainContent");
+    btn.disabled = true;
+    btn.textContent = "Analyzing...";
+    box.innerHTML = `<span style="color:#a5b4fc">🛰️ Consulting flight director briefing via Gemini 2.5 Flash...</span>`;
+    try {
+      const text = await window.LunaAI.explainTelemetry(s, eff().toISOString().slice(0, 16).replace("T", " "), k, a, vt);
+      aiExplainCache[expKey] = text;
+      box.innerHTML = text;
+      btn.textContent = "Regenerate";
+    } catch (err) {
+      box.innerHTML = `<span style="color:#f87171">Briefing error: ${err.message}</span>`;
+      btn.textContent = "Retry";
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
   $("addc").onclick = () => {
     if(state.compare.length >= 3) state.compare.shift();
     state.compare.push({ n: s.n, d: eff().toISOString().slice(0, 10), sunF: a.sunF, earF: a.earF, score: a.score, v: vt });
@@ -783,13 +863,47 @@ function renderReport(k, a){
 function renderCmp(){
   const el = $("cmp");
   if(!el) return;
-  el.innerHTML = state.compare.length
-    ? state.compare.map(c => `
-      <div class="card">
-        <span><b>${c.n}</b><br><small style="color:var(--mute)">${c.d}</small></span>
-        <span style="text-align:right"><b>${c.v} ${(c.score * 100).toFixed(0)}</b><br><small style="color:var(--mute)">Sun ${(c.sunF * 100).toFixed(0)}% &middot; Earth ${(c.earF * 100).toFixed(0)}%</small></span>
-      </div>`).join("")
-    : `<p class="sub">Add up to three landing sites or schedule dates to compare coverage metrics side-by-side.</p>`;
+  if (!state.compare.length) {
+    el.innerHTML = `<p class="sub">Add up to three landing sites or schedule dates to compare coverage metrics side-by-side.</p>`;
+    return;
+  }
+  
+  const cardsHtml = state.compare.map(c => `
+    <div class="card">
+      <span><b>${c.n}</b><br><small style="color:var(--mute)">${c.d}</small></span>
+      <span style="text-align:right"><b>${c.v} ${(c.score * 100).toFixed(0)}</b><br><small style="color:var(--mute)">Sun ${(c.sunF * 100).toFixed(0)}% &middot; Earth ${(c.earF * 100).toFixed(0)}%</small></span>
+    </div>`).join("");
+
+  const aiBtnHtml = state.compare.length >= 2 ? `
+    <div style="margin-top:10px;">
+      <button id="aiCmpBtn" style="width:100%; padding:7px 10px; font-size:11.5px; font-weight:600; background:rgba(52, 211, 153, 0.15); border:1px solid rgba(52, 211, 153, 0.45); color:#a7f3d0; border-radius:6px; cursor:pointer;">
+        ✨ Synthesize Trade Study (AI)
+      </button>
+      <div id="aiCmpContent" style="display:none; margin-top:8px; padding:10px 12px; background:rgba(18, 24, 38, 0.95); border:1px solid rgba(52, 211, 153, 0.3); border-radius:8px; font-size:11.5px; line-height:1.45; color:#cbd5e1;"></div>
+    </div>` : "";
+
+  el.innerHTML = cardsHtml + aiBtnHtml;
+
+  const cmpBtn = $("aiCmpBtn");
+  if (cmpBtn) {
+    cmpBtn.onclick = async () => {
+      const box = $("aiCmpContent");
+      box.style.display = "block";
+      cmpBtn.disabled = true;
+      cmpBtn.textContent = "Synthesizing...";
+      box.innerHTML = `<span style="color:#a7f3d0">⚖️ Analyzing multi-site trade study with Gemini 2.5 Flash...</span>`;
+      try {
+        const text = await window.LunaAI.summarizeComparison(state.compare);
+        box.innerHTML = text;
+        cmpBtn.textContent = "Re-synthesize";
+      } catch (err) {
+        box.innerHTML = `<span style="color:#f87171">Trade study error: ${err.message}</span>`;
+        cmpBtn.textContent = "Retry";
+      } finally {
+        cmpBtn.disabled = false;
+      }
+    };
+  }
 }
 
 function exportCSV(a){
