@@ -43,3 +43,4 @@ with sync_playwright() as p:
     print("\nScreenshot saved to screenshot_ai.png!")
 
     browser.close()
+
