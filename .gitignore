@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large binary SPICE kernels (downloadable via scripts/download_kernels.py)
+kernels/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
